@@ -1,0 +1,3064 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Central de Processos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg-1: #07111f;
+      --bg-2: #0b1728;
+      --bg-3: #101c33;
+      --surface: rgba(11, 23, 40, 0.72);
+      --surface-strong: rgba(16, 28, 51, 0.92);
+      --surface-soft: rgba(255, 255, 255, 0.045);
+      --text: #ecf4ff;
+      --muted: #9eb0ca;
+      --accent: #6ee7b7;
+      --accent-2: #60a5fa;
+      --accent-3: #c084fc;
+      --danger: #fb7185;
+      --warning: #fbbf24;
+      --ok: #34d399;
+      --border: rgba(255, 255, 255, 0.09);
+      --shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+      --radius: 24px;
+      --radius-sm: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 32%),
+        radial-gradient(circle at top right, rgba(192, 132, 252, 0.14), transparent 28%),
+        radial-gradient(circle at bottom center, rgba(110, 231, 183, 0.1), transparent 30%),
+        linear-gradient(145deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      width: 360px;
+      height: 360px;
+      border-radius: 999px;
+      filter: blur(90px);
+      opacity: 0.24;
+      pointer-events: none;
+      z-index: 0;
+      animation: floatGlow 12s ease-in-out infinite;
+    }
+
+    body::before {
+      top: -110px;
+      left: -80px;
+      background: rgba(96, 165, 250, 0.35);
+    }
+
+    body::after {
+      right: -120px;
+      bottom: -110px;
+      background: rgba(192, 132, 252, 0.28);
+      animation-delay: -4s;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: min(1280px, calc(100% - 24px));
+      margin: 18px auto 40px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(255, 255, 255, 0.03), rgba(192, 132, 252, 0.1));
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      animation: fadeUp 0.75s ease both;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, transparent 20%, rgba(255, 255, 255, 0.08) 50%, transparent 80%);
+      transform: translateX(-120%);
+      animation: shine 7s linear infinite;
+      pointer-events: none;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .brand-logo-wrap {
+      width: 60px;
+      height: 60px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-size: 1.45rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .badge,
+    .mini-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #d8e7ff;
+      font-size: 0.84rem;
+      letter-spacing: 0.01em;
+      backdrop-filter: blur(8px);
+    }
+
+    .mini-badge {
+      font-size: 0.78rem;
+      color: var(--muted);
+      padding: 7px 10px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3vw, 2.2rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      max-width: 760px;
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.65;
+    }
+
+    .hero-side {
+      min-width: 240px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero-side .soft-box {
+      margin-top: 0;
+      padding: 14px;
+    }
+
+    .hero-actions,
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .hero-actions {
+      margin-top: 16px;
+    }
+
+    button,
+    .tab-btn,
+    .link-btn {
+      position: relative;
+      overflow: hidden;
+      border: none;
+      border-radius: 15px;
+      padding: 12px 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+      font-family: inherit;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      text-decoration: none;
+    }
+
+    button:hover,
+    .tab-btn:hover,
+    .link-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.03);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6ee7b7, #34d399);
+      color: #06281b;
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #60a5fa, #7c3aed);
+      color: white;
+    }
+
+    .btn-muted {
+      background: linear-gradient(135deg, #334155, #1e293b);
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #fb7185, #e11d48);
+      color: white;
+    }
+
+    .btn-soft {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 15px 16px;
+      backdrop-filter: blur(10px);
+      animation: fadeUp 0.7s ease forwards;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-bottom: 8px;
+    }
+
+    .stat strong {
+      font-size: 1.08rem;
+      letter-spacing: -0.03em;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #60a5fa, #7c3aed);
+      color: white;
+    }
+
+    .tab-panel {
+      display: none;
+      margin-top: 18px;
+    }
+
+    .tab-panel.active {
+      display: block;
+      animation: fadeUp 0.45s ease both;
+    }
+
+    .grid,
+    .grid-2,
+    .grid-3 {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid {
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .grid-2 {
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+      animation: fadeUp 0.75s ease both;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 35%);
+      pointer-events: none;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(110, 231, 183, 0.18);
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-header,
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .section-head {
+      margin-bottom: 16px;
+    }
+
+    .card h2,
+    .card h3,
+    .section-head h2,
+    .section-head h3 {
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    .card h2,
+    .section-head h2 {
+      font-size: 1.02rem;
+    }
+
+    .card h3,
+    .section-head h3 {
+      font-size: 0.96rem;
+    }
+
+    .card-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+      background: linear-gradient(135deg, rgba(96, 165, 250, 0.18), rgba(192, 132, 252, 0.18));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .soft-box,
+    .quick-item,
+    .info-line {
+      margin-top: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 18px;
+      padding: 14px;
+      line-height: 1.6;
+    }
+
+    .soft-box:first-child,
+    .info-line:first-child {
+      margin-top: 0;
+    }
+
+    .big {
+      font-size: 1.48rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-top: 4px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .meta {
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .quick-item h3,
+    .quick-item p {
+      margin: 0;
+    }
+
+    .quick-item p {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .list-stack,
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .list-item,
+    .timeline-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .list-item strong,
+    .timeline-item strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 16px;
+    }
+
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 14px;
+      width: 4px;
+      height: calc(100% - 28px);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(96, 165, 250, 0.9), rgba(110, 231, 183, 0.5));
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+      border: 1px solid transparent;
+    }
+
+    .chip.ok,
+    .chip.status-concluido {
+      background: rgba(110, 231, 183, 0.12);
+      color: #9af0cb;
+      border-color: rgba(110, 231, 183, 0.16);
+    }
+
+    .chip.warn,
+    .chip.priority-semana,
+    .chip.priority-hoje {
+      background: rgba(251, 191, 36, 0.12);
+      color: #ffd87f;
+      border-color: rgba(251, 191, 36, 0.16);
+    }
+
+    .chip.out,
+    .chip.priority-vencido {
+      background: rgba(251, 113, 133, 0.12);
+      color: #ffb3c0;
+      border-color: rgba(251, 113, 133, 0.16);
+    }
+
+    .chip.info,
+    .chip.priority-normal,
+    .chip.priority-parado {
+      background: rgba(96, 165, 250, 0.12);
+      color: #9ecaff;
+      border-color: rgba(96, 165, 250, 0.16);
+    }
+
+    .chip.status-em-andamento,
+    .chip.status-prazo-em-curso {
+      background: rgba(96, 165, 250, 0.12);
+      color: #9ecaff;
+      border-color: rgba(96, 165, 250, 0.16);
+    }
+
+    .chip.status-aguardando-cliente,
+    .chip.status-aguardando-decisao,
+    .chip.status-arquivado {
+      background: rgba(255, 255, 255, 0.09);
+      color: #d9e8ff;
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .filters-grid,
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .form-grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(5, 11, 22, 0.34);
+      color: var(--text);
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(96, 165, 250, 0.55);
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16);
+    }
+
+    textarea {
+      min-height: 104px;
+      resize: vertical;
+    }
+
+    .inline-check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 4px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .inline-check input {
+      width: auto;
+      accent-color: #60a5fa;
+      box-shadow: none;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.03);
+      margin-top: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 930px;
+    }
+
+    th,
+    td {
+      padding: 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      vertical-align: top;
+    }
+
+    th {
+      color: #cfe0fb;
+      font-size: 0.84rem;
+      background: rgba(255, 255, 255, 0.04);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    td {
+      color: #e8f1ff;
+      font-size: 0.92rem;
+    }
+
+    tbody tr {
+      transition: background 0.18s ease;
+    }
+
+    tbody tr:hover td {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    tbody tr.selected td {
+      background: rgba(96, 165, 250, 0.1);
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini-btn {
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      box-shadow: none;
+    }
+
+    .empty-state {
+      padding: 26px 18px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+      border-radius: 18px;
+    }
+
+    .detail-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .detail-item {
+      display: grid;
+      gap: 4px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .detail-item span {
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 14, 0.72);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 30;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(960px, 100%);
+      max-height: min(92vh, 980px);
+      overflow: auto;
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(10, 16, 28, 0.96);
+      box-shadow: 0 35px 90px rgba(0, 0, 0, 0.52);
+      padding: 22px;
+    }
+
+    .modal.small {
+      width: min(760px, 100%);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .portal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 12px;
+    }
+
+    .portal-card {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .portal-card .row-actions {
+      gap: 8px;
+    }
+
+    .stats-inline {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .footer {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+      opacity: 0.85;
+      animation: fadeUp 0.9s ease both;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes shine {
+      from {
+        transform: translateX(-120%);
+      }
+
+      to {
+        transform: translateX(140%);
+      }
+    }
+
+    @keyframes floatGlow {
+      0%,
+      100% {
+        transform: translateY(0) translateX(0);
+      }
+
+      50% {
+        transform: translateY(18px) translateX(12px);
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .grid-2,
+      .grid-3,
+      .filters-grid,
+      .form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .hero-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .container {
+        width: min(100% - 14px, 1200px);
+        margin: 14px auto 28px;
+      }
+
+      .hero,
+      .card,
+      .modal {
+        border-radius: 22px;
+      }
+
+      .hero {
+        padding: 18px;
+      }
+
+      .card,
+      .modal {
+        padding: 18px;
+      }
+
+      .hero-stats,
+      .grid-2,
+      .grid-3,
+      .filters-grid,
+      .form-grid,
+      .form-grid.two {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h1 {
+        font-size: 1.65rem;
+      }
+
+      table {
+        min-width: 760px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="brand">
+            <div class="brand-logo-wrap">⚖️</div>
+            <div>
+              <div class="badge">Central de processos do escritorio</div>
+            </div>
+          </div>
+          <h1>Processos, prazos e responsaveis em um so lugar.</h1>
+          <p>Controle manual com visualizacao clara, filtros rapidos, historico por processo e dados salvos localmente no navegador.</p>
+          <div class="hero-actions">
+            <button type="button" id="heroNewProcess" class="btn-primary">Novo processo</button>
+            <button type="button" id="heroGoProcesses" class="btn-secondary">Ver processos</button>
+            <button type="button" id="heroExport" class="btn-muted">Exportar backup</button>
+          </div>
+        </div>
+
+        <div class="hero-side">
+          <div class="soft-box">
+            <strong id="connectionTitle">Conexao compartilhada</strong>
+            <div class="muted" id="connectionText">Conecte sua conta para carregar os dados do escritorio em tempo real.</div>
+          </div>
+          <div class="stats-inline">
+            <span class="mini-badge" id="authBadge">Sem login</span>
+            <span class="mini-badge" id="syncBadge">Realtime inativo</span>
+            <span class="mini-badge">Backup em JSON</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat">
+          <span>Processos ativos</span>
+          <strong id="heroActiveCount">0</strong>
+        </div>
+        <div class="stat">
+          <span>Urgentes</span>
+          <strong id="heroUrgentCount">0</strong>
+        </div>
+        <div class="stat">
+          <span>Prazos na semana</span>
+          <strong id="heroWeekCount">0</strong>
+        </div>
+        <div class="stat">
+          <span>Sem atualizacao 15+ dias</span>
+          <strong id="heroStaleCount">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <div class="tabs" id="tabs">
+      <button type="button" class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button type="button" class="tab-btn" data-tab="processos">Processos</button>
+      <button type="button" class="tab-btn" data-tab="tribunais">Tribunais</button>
+      <button type="button" class="tab-btn" data-tab="agenda">Agenda</button>
+      <button type="button" class="tab-btn" data-tab="clientes">Clientes</button>
+      <button type="button" class="tab-btn" data-tab="config">Configuracoes</button>
+    </div>
+
+    <section id="dashboard" class="tab-panel active">
+      <div class="grid">
+        <div class="card">
+          <div class="card-header">
+            <h2>Resumo do escritorio</h2>
+            <div class="card-icon">📊</div>
+          </div>
+          <div class="soft-box">
+            <div class="big" id="dashboardPrimaryMetric">0 processos em acompanhamento</div>
+            <div class="muted" id="dashboardSummaryText">Cadastre seus processos para acompanhar prazos, andamento e distribuicao de carga.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Movimento recente</h2>
+            <div class="card-icon">🧭</div>
+          </div>
+          <div class="soft-box">
+            <strong id="dashboardMovementTitle">Tudo em ordem</strong>
+            <div class="muted" id="dashboardMovementText">Assim que houver prazos ou processos sem atualizacao, eles aparecem aqui automaticamente.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Uso recomendado</h2>
+            <div class="card-icon">🤖</div>
+          </div>
+          <div class="soft-box">
+            Atualize a ultima movimentacao sempre que mexer em um caso. O sistema reorganiza prioridades, agenda e painis sem precisar de mais trabalho.
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top: 18px;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Fila de atencao</h2>
+            <div class="card-icon">⏰</div>
+          </div>
+          <div id="dashboardPriorityList" class="list-stack"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Agenda da semana</h2>
+            <div class="card-icon">📅</div>
+          </div>
+          <div id="dashboardAgendaList" class="list-stack"></div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top: 18px;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Carga por responsavel</h2>
+            <div class="card-icon">👤</div>
+          </div>
+          <div id="dashboardResponsibleList" class="list-stack"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Clientes com mais volume</h2>
+            <div class="card-icon">🏢</div>
+          </div>
+          <div id="dashboardClientList" class="list-stack"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 18px;">
+        <div class="card-header">
+          <h2>Historico recente</h2>
+          <div class="card-icon">📝</div>
+        </div>
+        <div id="dashboardHistoryList" class="timeline"></div>
+      </div>
+    </section>
+
+    <section id="processos" class="tab-panel">
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <h2>Controle de processos</h2>
+            <div class="muted">Cadastre, filtre, revise e acompanhe o historico do escritorio em um unico lugar.</div>
+          </div>
+          <div class="toolbar">
+            <button type="button" id="newProcessBtn" class="btn-primary">Cadastrar processo</button>
+            <button type="button" id="exportBtn" class="btn-secondary">Exportar JSON</button>
+            <button type="button" id="importBtn" class="btn-muted">Importar backup</button>
+            <input type="file" id="importFile" accept="application/json" hidden />
+          </div>
+        </div>
+
+        <div class="filters-grid">
+          <label>
+            Busca geral
+            <input type="text" id="filterSearch" placeholder="Numero, cliente, parte ou observacao" />
+          </label>
+          <label>
+            Status
+            <select id="filterStatus">
+              <option value="">Todos</option>
+            </select>
+          </label>
+          <label>
+            Responsavel
+            <select id="filterResponsible">
+              <option value="">Todos</option>
+            </select>
+          </label>
+          <label>
+            Tribunal
+            <select id="filterCourt">
+              <option value="">Todos</option>
+            </select>
+          </label>
+          <label>
+            Prioridade
+            <select id="filterPriority">
+              <option value="">Todas</option>
+              <option value="vencido">Vencido</option>
+              <option value="hoje">Hoje</option>
+              <option value="semana">Semana</option>
+              <option value="parado">Parado</option>
+              <option value="normal">Normal</option>
+            </select>
+          </label>
+          <label class="inline-check">
+            <input type="checkbox" id="filterOnlyUrgent" />
+            Mostrar apenas urgentes
+          </label>
+          <label class="inline-check">
+            <input type="checkbox" id="filterOnlyStale" />
+            Sem atualizacao ha 15+ dias
+          </label>
+          <div class="toolbar" style="align-items: end;">
+            <button type="button" id="clearFiltersBtn" class="btn-soft">Limpar filtros</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Numero</th>
+                <th>Cliente</th>
+                <th>Tribunal</th>
+                <th>Responsavel</th>
+                <th>Status</th>
+                <th>Prioridade</th>
+                <th>Prazo</th>
+                <th>Atualizacao</th>
+                <th>Acoes</th>
+              </tr>
+            </thead>
+            <tbody id="processTableBody"></tbody>
+          </table>
+        </div>
+        <div class="meta" id="processCountText" style="margin-top: 12px;"></div>
+      </div>
+
+      <div class="grid-2" style="margin-top: 18px;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Painel do processo</h2>
+            <div class="card-icon">📁</div>
+          </div>
+          <div id="processDetailPanel"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Checklist de producao</h2>
+            <div class="card-icon">✅</div>
+          </div>
+          <div class="list-stack">
+            <div class="list-item">
+              <div>
+                <strong>Registrar a ultima movimentacao</strong>
+                <span class="muted">Isso alimenta o dashboard e evita processos parados sem percepcao.</span>
+              </div>
+            </div>
+            <div class="list-item">
+              <div>
+                <strong>Preencher prazo quando houver</strong>
+                <span class="muted">Prazos vencidos, hoje e da semana aparecem automaticamente em destaque.</span>
+              </div>
+            </div>
+            <div class="list-item">
+              <div>
+                <strong>Salvar o link do processo</strong>
+                <span class="muted">Assim o acesso ao tribunal fica a um clique, sem perder tempo procurando portal.</span>
+              </div>
+            </div>
+            <div class="list-item">
+              <div>
+                <strong>Exportar backup periodicamente</strong>
+                <span class="muted">Como os dados ficam no navegador, o backup em JSON protege o seu trabalho.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tribunais" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2>Portais rapidos</h2>
+            <div class="card-icon">🌐</div>
+          </div>
+          <div id="portalGrid" class="portal-grid"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Distribuicao por tribunal</h2>
+            <div class="card-icon">🏛️</div>
+          </div>
+          <div id="courtLoadList" class="list-stack"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="agenda" class="tab-panel">
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-header">
+            <h2>Prazos vencidos</h2>
+            <div class="card-icon">🚨</div>
+          </div>
+          <div id="agendaOverdueList" class="list-stack"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Prazos de hoje</h2>
+            <div class="card-icon">📌</div>
+          </div>
+          <div id="agendaTodayList" class="list-stack"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Proximos 7 dias</h2>
+            <div class="card-icon">🗓️</div>
+          </div>
+          <div id="agendaWeekList" class="list-stack"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 18px;">
+        <div class="card-header">
+          <h2>Linha do tempo de prazos</h2>
+          <div class="card-icon">⏳</div>
+        </div>
+        <div id="agendaTimeline" class="timeline"></div>
+      </div>
+    </section>
+
+    <section id="clientes" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2>Carteira de clientes</h2>
+            <div class="card-icon">👥</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Processos</th>
+                  <th>Urgentes</th>
+                  <th>Proximo prazo</th>
+                </tr>
+              </thead>
+              <tbody id="clientTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Responsaveis</h2>
+            <div class="card-icon">🤝</div>
+          </div>
+          <div id="responsibleTableBody" class="list-stack"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="config" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2>Acesso, sync e backup</h2>
+            <div class="card-icon">⚙️</div>
+          </div>
+          <div class="soft-box">
+            <strong>Status de acesso</strong>
+            <div class="muted" id="authStatusText">Voce ainda nao entrou. Use seu email e senha do Supabase para acessar a base compartilhada.</div>
+            <div class="toolbar" style="margin-top: 12px;">
+              <button type="button" id="logoutBtn" class="btn-soft" hidden>Encerrar sessao</button>
+              <button type="button" id="forceResetBtn" class="btn-danger" onclick="forceResetSession()">Limpar sessao local</button>
+            </div>
+          </div>
+          <form id="authForm" style="margin-top: 14px;">
+            <div class="form-grid two">
+              <label>
+                Email
+                <input type="email" id="authEmail" placeholder="voce@escritorio.com" required />
+              </label>
+              <label>
+                Senha
+                <input type="password" id="authPassword" placeholder="Sua senha" required />
+              </label>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn-primary">Entrar</button>
+              <button type="button" id="registerBtn" class="btn-muted">Criar acesso</button>
+            </div>
+          </form>
+          <div class="soft-box">
+            <strong>Armazenamento atual</strong>
+            <div class="muted">Esta versao usa Supabase para compartilhar processos e portais entre voces. O backup em JSON continua disponivel como seguranca adicional.</div>
+          </div>
+          <div class="soft-box">
+            <strong>Diagnostico</strong>
+            <div class="muted" id="runtimeMessage">Aguardando conexao com Supabase.</div>
+          </div>
+          <div class="toolbar" style="margin-top: 14px;">
+            <button type="button" id="configExportBtn" class="btn-secondary">Exportar backup</button>
+            <button type="button" id="configImportBtn" class="btn-muted">Importar backup</button>
+            <button type="button" id="seedDataBtn" class="btn-soft">Restaurar exemplo</button>
+            <button type="button" id="clearDataBtn" class="btn-danger">Limpar tudo</button>
+          </div>
+          <div class="soft-box">
+            <strong>Regras de prioridade</strong>
+            <div class="muted">
+              Vencido: prazo passado.<br />
+              Hoje: prazo no dia atual.<br />
+              Semana: prazo nos proximos 7 dias.<br />
+              Parado: sem atualizacao ha 30 dias ou mais.<br />
+              Normal: demais casos.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Portais do escritorio</h2>
+            <div class="card-icon">🔗</div>
+          </div>
+          <form id="portalForm">
+            <input type="hidden" id="portalId" />
+            <div class="form-grid two">
+              <label>
+                Nome do portal
+                <input type="text" id="portalName" placeholder="Ex.: eproc TRF6" required />
+              </label>
+              <label>
+                URL
+                <input type="url" id="portalUrl" placeholder="https://..." required />
+              </label>
+            </div>
+            <label style="margin-top: 12px;">
+              Descricao
+              <textarea id="portalDescription" placeholder="Consulta, peticionamento, andamento..."></textarea>
+            </label>
+            <div class="modal-footer">
+              <button type="button" id="cancelPortalEdit" class="btn-soft" hidden>Cancelar edicao</button>
+              <button type="submit" class="btn-primary">Salvar portal</button>
+            </div>
+          </form>
+          <div id="configPortalList" class="list-stack" style="margin-top: 18px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">Central de Processos - base funcional local para acompanhamento do escritorio.</div>
+  </div>
+
+  <div id="processModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="processModalTitle">Novo processo</h2>
+          <div class="muted">Cadastre todas as informacoes necessarias para visualizacao, prazos e producao.</div>
+        </div>
+        <button type="button" data-close-modal="processModal" class="btn-soft">Fechar</button>
+      </div>
+
+      <form id="processForm" novalidate>
+        <input type="hidden" id="processId" />
+        <div class="form-grid">
+          <label>
+            Numero do processo
+            <input type="text" id="processNumber" placeholder="0000000-00.0000.0.00.0000" required />
+          </label>
+          <label>
+            Cliente
+            <input type="text" id="processClient" placeholder="Nome do cliente" required />
+          </label>
+          <label>
+            Parte contraria
+            <input type="text" id="processOpposingParty" placeholder="Parte contraria" />
+          </label>
+          <label>
+            Responsavel
+            <input type="text" id="processResponsible" placeholder="Ex.: Dr. Thiago" required />
+          </label>
+          <label>
+            Tribunal
+            <input type="text" id="processCourt" placeholder="Ex.: TRF6" required />
+          </label>
+          <label>
+            Sistema
+            <input type="text" id="processSystem" placeholder="Ex.: eproc ou PJe" />
+          </label>
+          <label>
+            Status
+            <select id="processStatus" required>
+              <option value="Em andamento">Em andamento</option>
+              <option value="Prazo em curso">Prazo em curso</option>
+              <option value="Aguardando cliente">Aguardando cliente</option>
+              <option value="Aguardando decisao">Aguardando decisao</option>
+              <option value="Concluido">Concluido</option>
+              <option value="Arquivado">Arquivado</option>
+            </select>
+          </label>
+          <label>
+            Prazo
+            <input type="date" id="processDeadline" />
+          </label>
+          <label>
+            Data da ultima atualizacao
+            <input type="date" id="processUpdatedAt" required />
+          </label>
+          <label>
+            Ultima movimentacao
+            <input type="text" id="processLastMovement" placeholder="Ex.: juntada de peticao" />
+          </label>
+          <label>
+            Proxima acao
+            <input type="text" id="processNextAction" placeholder="Ex.: revisar contestacao" />
+          </label>
+          <label>
+            Link do processo
+            <input type="text" id="processLink" placeholder="https://..." />
+          </label>
+        </div>
+
+        <label style="margin-top: 12px;">
+          Observacoes
+          <textarea id="processNotes" placeholder="Observacoes internas, pontos sensiveis, proximo passo..."></textarea>
+        </label>
+
+        <div class="modal-footer">
+          <button type="button" data-close-modal="processModal" class="btn-soft">Cancelar</button>
+          <button type="button" id="saveProcessBtn" class="btn-primary">Salvar processo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="historyModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal small">
+      <div class="modal-header">
+        <div>
+          <h2 id="historyModalTitle">Historico do processo</h2>
+          <div class="muted">Registro local das alteracoes feitas no sistema.</div>
+        </div>
+        <button type="button" data-close-modal="historyModal" class="btn-soft">Fechar</button>
+      </div>
+      <div id="historyModalList" class="timeline"></div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://ridbspgckbiffhxhiuvn.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_YBdDsyQg2JBR8fWXrbpgYg_LVVcE77q";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const DEFAULT_PORTALS = [
+      {
+        id: crypto.randomUUID(),
+        name: "eproc TRF6",
+        url: "https://eproc.trf6.jus.br/eprocV2/",
+        description: "Acesso rapido ao eproc do TRF6."
+      },
+      {
+        id: crypto.randomUUID(),
+        name: "PJe Estadual",
+        url: "https://pje.tjmg.jus.br/pje/login.seam",
+        description: "Consulta e movimentacao de processos no PJe estadual."
+      },
+      {
+        id: crypto.randomUUID(),
+        name: "Justica do Trabalho",
+        url: "https://pje.trt3.jus.br/consultaprocessual/",
+        description: "Atalho para consulta processual trabalhista."
+      },
+      {
+        id: crypto.randomUUID(),
+        name: "eproc Estadual",
+        url: "https://eproc1g.tjmg.jus.br/eproc/",
+        description: "Portal estadual para feitos no eproc."
+      }
+    ];
+
+    const SAMPLE_PROCESSES = [
+      {
+        id: crypto.randomUUID(),
+        number: "5019988-44.2025.4.06.3800",
+        client: "Cliente Exemplo A",
+        opposingParty: "INSS",
+        court: "TRF6",
+        system: "eproc",
+        responsible: "Dr. Thiago",
+        status: "Em andamento",
+        deadline: getDateOffset(2),
+        updatedAt: getDateOffset(-1),
+        lastMovement: "Aguardando analise de peticao protocolada",
+        nextAction: "Conferir despacho e preparar complemento",
+        notes: "Processo previdenciario com andamento recente no tribunal.",
+        link: "https://eproc.trf6.jus.br/eprocV2/",
+        createdAt: new Date().toISOString(),
+        history: [
+          makeHistoryEntry("Processo cadastrado no sistema", "cadastro", getDateOffset(-10, true)),
+          makeHistoryEntry("Ultima movimentacao atualizada para despacho recente", "atualizacao", getDateOffset(-1, true))
+        ]
+      },
+      {
+        id: crypto.randomUUID(),
+        number: "0004567-80.2024.5.03.0012",
+        client: "Cliente Exemplo B",
+        opposingParty: "Empresa XYZ",
+        court: "TRT3",
+        system: "PJe",
+        responsible: "Socio",
+        status: "Aguardando decisao",
+        deadline: "",
+        updatedAt: getDateOffset(-19),
+        lastMovement: "Conclusos para sentenca",
+        nextAction: "Acompanhar publicacao",
+        notes: "Sem prazo aberto, mas com necessidade de revisao semanal.",
+        link: "https://pje.trt3.jus.br/consultaprocessual/",
+        createdAt: new Date().toISOString(),
+        history: [
+          makeHistoryEntry("Andamento atualizado com conclusao para sentenca", "atualizacao", getDateOffset(-19, true))
+        ]
+      },
+      {
+        id: crypto.randomUUID(),
+        number: "5001234-12.2025.8.13.0000",
+        client: "Cliente Exemplo C",
+        opposingParty: "Banco Exemplo",
+        court: "TJMG",
+        system: "PJe",
+        responsible: "Dr. Thiago",
+        status: "Prazo em curso",
+        deadline: getDateOffset(-1),
+        updatedAt: getDateOffset(-3),
+        lastMovement: "Aberto prazo para manifestacao",
+        nextAction: "Protocolar manifestacao imediatamente",
+        notes: "Processo civil com prazo ja vencido para destaque.",
+        link: "https://pje.tjmg.jus.br/pje/login.seam",
+        createdAt: new Date().toISOString(),
+        history: [
+          makeHistoryEntry("Prazo registrado para manifestacao", "prazo", getDateOffset(-3, true))
+        ]
+      }
+    ];
+
+    const state = {
+      processes: [],
+      portals: [],
+      selectedProcessId: null,
+      user: null,
+      authReady: false,
+      subscriptions: [],
+      runtimeMessage: "Aguardando conexao com Supabase."
+    };
+
+    const tabs = Array.from(document.querySelectorAll(".tab-btn"));
+    const panels = Array.from(document.querySelectorAll(".tab-panel"));
+    const processTableBody = document.getElementById("processTableBody");
+    const processCountText = document.getElementById("processCountText");
+    const processDetailPanel = document.getElementById("processDetailPanel");
+    const importFile = document.getElementById("importFile");
+
+    function setRuntimeMessage(message) {
+      state.runtimeMessage = message;
+      const runtimeMessage = document.getElementById("runtimeMessage");
+      if (runtimeMessage) {
+        runtimeMessage.textContent = message;
+      }
+    }
+
+    function getDateOffset(offset, withTime = false) {
+      const date = new Date();
+      date.setDate(date.getDate() + offset);
+      if (!withTime) {
+        return date.toISOString().slice(0, 10);
+      }
+      return date.toISOString();
+    }
+
+    function makeHistoryEntry(note, type = "atualizacao", date = new Date().toISOString()) {
+      return {
+        id: crypto.randomUUID(),
+        type,
+        note,
+        date
+      };
+    }
+
+    function normalizeProcess(process) {
+      return {
+        id: process.id || crypto.randomUUID(),
+        number: process.number || "",
+        client: process.client || "",
+        opposingParty: process.opposingParty || "",
+        court: process.court || "",
+        system: process.system || "",
+        responsible: process.responsible || "",
+        status: process.status || "Em andamento",
+        deadline: process.deadline || "",
+        updatedAt: process.updatedAt || todayISO(),
+        lastMovement: process.lastMovement || "",
+        nextAction: process.nextAction || "",
+        notes: process.notes || "",
+        link: process.link || "",
+        createdAt: process.createdAt || new Date().toISOString(),
+        history: Array.isArray(process.history) ? process.history : []
+      };
+    }
+
+    function mapDbProcessToUi(row) {
+      return normalizeProcess({
+        id: row.id,
+        number: row.number,
+        client: row.client,
+        opposingParty: row.opposing_party,
+        court: row.court,
+        system: row.system,
+        responsible: row.responsible,
+        status: row.status,
+        deadline: row.deadline || "",
+        updatedAt: row.updated_at || todayISO(),
+        lastMovement: row.last_movement,
+        nextAction: row.next_action,
+        notes: row.notes,
+        link: row.link,
+        createdAt: row.created_at,
+        history: row.history || []
+      });
+    }
+
+    function mapUiProcessToDb(process) {
+      return {
+        id: process.id,
+        number: process.number,
+        client: process.client,
+        opposing_party: process.opposingParty,
+        court: process.court,
+        system: process.system,
+        responsible: process.responsible,
+        status: process.status,
+        deadline: process.deadline || null,
+        updated_at: process.updatedAt || todayISO(),
+        last_movement: process.lastMovement,
+        next_action: process.nextAction,
+        notes: process.notes,
+        link: process.link,
+        history: process.history || [],
+        created_at: process.createdAt || new Date().toISOString()
+      };
+    }
+
+    function normalizePortal(portal) {
+      return {
+        id: portal.id || crypto.randomUUID(),
+        name: portal.name || "",
+        url: portal.url || "",
+        description: portal.description || ""
+      };
+    }
+
+    function mapDbPortalToUi(row) {
+      return normalizePortal({
+        id: row.id,
+        name: row.name,
+        url: row.url,
+        description: row.description
+      });
+    }
+
+    function mapUiPortalToDb(portal) {
+      return {
+        id: portal.id,
+        name: portal.name,
+        url: portal.url,
+        description: portal.description
+      };
+    }
+
+    function todayISO() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function startOfToday(date = new Date()) {
+      const current = new Date(date);
+      current.setHours(0, 0, 0, 0);
+      return current;
+    }
+
+    function parseISODate(value) {
+      if (!value) return null;
+      const date = new Date(value.length === 10 ? value + "T00:00:00" : value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function diffDays(dateValue) {
+      const target = parseISODate(dateValue);
+      if (!target) return null;
+      const oneDay = 1000 * 60 * 60 * 24;
+      return Math.round((startOfToday(target) - startOfToday()) / oneDay);
+    }
+
+    function daysSince(dateValue) {
+      const target = parseISODate(dateValue);
+      if (!target) return null;
+      const oneDay = 1000 * 60 * 60 * 24;
+      return Math.round((startOfToday() - startOfToday(target)) / oneDay);
+    }
+
+    function formatDate(value) {
+      if (!value) return "-";
+      const date = parseISODate(value);
+      if (!date) return "-";
+      return new Intl.DateTimeFormat("pt-BR").format(date);
+    }
+
+    function sanitizeClass(text) {
+      return (text || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function courtLabel(process) {
+      return [process.court, process.system].filter(Boolean).join(" / ") || "-";
+    }
+
+    function getPriority(process) {
+      if (["Concluido", "Arquivado"].includes(process.status)) {
+        return { key: "normal", label: "Baixa", className: "info", weight: 1 };
+      }
+
+      const deadlineDiff = diffDays(process.deadline);
+      const staleDays = daysSince(process.updatedAt);
+
+      if (deadlineDiff !== null && deadlineDiff < 0) {
+        return { key: "vencido", label: "Vencido", className: "out", weight: 5 };
+      }
+
+      if (deadlineDiff === 0) {
+        return { key: "hoje", label: "Hoje", className: "warn", weight: 4 };
+      }
+
+      if (deadlineDiff !== null && deadlineDiff > 0 && deadlineDiff <= 7) {
+        return { key: "semana", label: "Semana", className: "warn", weight: 3 };
+      }
+
+      if (staleDays !== null && staleDays >= 30) {
+        return { key: "parado", label: "Parado", className: "info", weight: 2 };
+      }
+
+      return { key: "normal", label: "Normal", className: "ok", weight: 1 };
+    }
+
+    function statusChipClass(status) {
+      return "status-" + sanitizeClass(status);
+    }
+
+    function sortProcesses(processes) {
+      return [...processes].sort((a, b) => {
+        const priorityDiff = getPriority(b).weight - getPriority(a).weight;
+        if (priorityDiff !== 0) return priorityDiff;
+
+        const deadlineA = diffDays(a.deadline);
+        const deadlineB = diffDays(b.deadline);
+        if (deadlineA !== null && deadlineB !== null && deadlineA !== deadlineB) return deadlineA - deadlineB;
+        if (deadlineA !== null && deadlineB === null) return -1;
+        if (deadlineA === null && deadlineB !== null) return 1;
+
+        return (daysSince(b.updatedAt) || 0) - (daysSince(a.updatedAt) || 0);
+      });
+    }
+
+    async function loadState() {
+      setRuntimeMessage("Validando sessao atual...");
+      const { data } = await supabaseClient.auth.getSession();
+      state.user = data.session?.user || null;
+
+      if (state.user) {
+        const { error: userError } = await supabaseClient.auth.getUser();
+        if (userError) {
+          await clearLocalSession(false);
+          setRuntimeMessage(`Sessao local invalida removida: ${userError.message}`);
+          state.user = null;
+        }
+      }
+
+      state.authReady = true;
+      updateAuthUI();
+
+      if (state.user) {
+        await loadRemoteData();
+        subscribeToRealtime();
+      } else {
+        state.processes = [];
+        state.portals = [];
+        state.selectedProcessId = null;
+        setRuntimeMessage("Sem sessao ativa. Entre com sua conta do Supabase.");
+        renderAll();
+      }
+    }
+
+    async function loadRemoteData(renderAfter = true) {
+      if (!state.user) return;
+
+      const [processResult, portalResult] = await Promise.all([
+        supabaseClient
+          .from("processes")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabaseClient
+          .from("portals")
+          .select("*")
+          .order("created_at", { ascending: false })
+      ]);
+
+      if (processResult.error) {
+        console.error(processResult.error);
+        setRuntimeMessage(`Erro ao carregar processos: ${processResult.error.message}`);
+        window.alert("Nao foi possivel carregar os processos no Supabase.");
+        return;
+      }
+
+      if (portalResult.error) {
+        console.error(portalResult.error);
+        setRuntimeMessage(`Erro ao carregar portais: ${portalResult.error.message}`);
+        window.alert("Nao foi possivel carregar os portais no Supabase.");
+        return;
+      }
+
+      state.processes = (processResult.data || []).map(mapDbProcessToUi);
+      state.portals = (portalResult.data || []).map(mapDbPortalToUi);
+
+      if (!state.portals.length) {
+        await ensureDefaultPortals();
+        return;
+      }
+
+      if (!state.processes.find((process) => process.id === state.selectedProcessId)) {
+        state.selectedProcessId = state.processes[0]?.id || null;
+      }
+
+      if (renderAfter) {
+        setRuntimeMessage(`Conectado ao Supabase. ${state.processes.length} processo(s) e ${state.portals.length} portal(is) carregados.`);
+        renderAll();
+      }
+    }
+
+    async function ensureDefaultPortals() {
+      if (!state.user || state.portals.length) return;
+      const { error } = await supabaseClient.from("portals").insert(DEFAULT_PORTALS.map(mapUiPortalToDb));
+      if (error) {
+        console.error(error);
+        return;
+      }
+      await loadRemoteData();
+    }
+
+    function cleanupSubscriptions() {
+      state.subscriptions.forEach((channel) => {
+        supabaseClient.removeChannel(channel);
+      });
+      state.subscriptions = [];
+    }
+
+    function subscribeToRealtime() {
+      cleanupSubscriptions();
+      if (!state.user) return;
+
+      const processesChannel = supabaseClient
+        .channel("processes-live")
+        .on("postgres_changes", { event: "*", schema: "public", table: "processes" }, () => {
+          loadRemoteData();
+        })
+        .subscribe();
+
+      const portalsChannel = supabaseClient
+        .channel("portals-live")
+        .on("postgres_changes", { event: "*", schema: "public", table: "portals" }, () => {
+          loadRemoteData();
+        })
+        .subscribe();
+
+      state.subscriptions = [processesChannel, portalsChannel];
+    }
+
+    function updateAuthUI() {
+      const loggedIn = Boolean(state.user);
+      const authBadge = document.getElementById("authBadge");
+      const syncBadge = document.getElementById("syncBadge");
+      const authStatusText = document.getElementById("authStatusText");
+      const connectionText = document.getElementById("connectionText");
+      const connectionTitle = document.getElementById("connectionTitle");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      authBadge.textContent = loggedIn ? "Conta conectada" : "Sem login";
+      syncBadge.textContent = loggedIn ? "Realtime ativo" : "Realtime inativo";
+      connectionTitle.textContent = loggedIn ? "Conexao compartilhada ativa" : "Conexao compartilhada";
+      connectionText.textContent = loggedIn
+        ? `Voce esta conectado como ${state.user.email}. Alteracoes aparecem em tempo real para quem estiver online.`
+        : "Conecte sua conta para carregar os dados do escritorio em tempo real.";
+      authStatusText.textContent = loggedIn
+        ? `Sessao ativa para ${state.user.email}. Seu socio podera acessar a mesma base com a conta dele.`
+        : "Voce ainda nao entrou. Use seu email e senha do Supabase para acessar a base compartilhada.";
+      logoutBtn.hidden = !loggedIn;
+      setRuntimeMessage(state.runtimeMessage);
+    }
+
+    function ensureAuthenticated(actionLabel = "continuar") {
+      if (state.user) return true;
+      window.alert(`Entre com sua conta antes de ${actionLabel}.`);
+      openTab("config");
+      return false;
+    }
+
+    function getFilteredProcesses() {
+      const search = document.getElementById("filterSearch").value.trim().toLowerCase();
+      const status = document.getElementById("filterStatus").value;
+      const responsible = document.getElementById("filterResponsible").value;
+      const court = document.getElementById("filterCourt").value;
+      const priority = document.getElementById("filterPriority").value;
+      const onlyUrgent = document.getElementById("filterOnlyUrgent").checked;
+      const onlyStale = document.getElementById("filterOnlyStale").checked;
+
+      return sortProcesses(state.processes).filter((process) => {
+        const priorityData = getPriority(process);
+        const searchable = [
+          process.number,
+          process.client,
+          process.opposingParty,
+          process.notes,
+          process.lastMovement,
+          process.nextAction
+        ].join(" ").toLowerCase();
+
+        const matchesSearch = !search || searchable.includes(search);
+        const matchesStatus = !status || process.status === status;
+        const matchesResponsible = !responsible || process.responsible === responsible;
+        const matchesCourt = !court || process.court === court;
+        const matchesPriority = !priority || priorityData.key === priority;
+        const matchesUrgent = !onlyUrgent || ["vencido", "hoje", "semana"].includes(priorityData.key);
+        const matchesStale = !onlyStale || (daysSince(process.updatedAt) || 0) >= 15;
+
+        return matchesSearch && matchesStatus && matchesResponsible && matchesCourt && matchesPriority && matchesUrgent && matchesStale;
+      });
+    }
+
+    function uniqueSortedValues(key) {
+      return Array.from(new Set(state.processes.map((process) => process[key]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    }
+
+    function populateFilterOptions() {
+      fillSelect("filterStatus", uniqueSortedValues("status"), "Todos");
+      fillSelect("filterResponsible", uniqueSortedValues("responsible"), "Todos");
+      fillSelect("filterCourt", uniqueSortedValues("court"), "Todos");
+    }
+
+    function fillSelect(id, values, firstLabel) {
+      const select = document.getElementById(id);
+      const current = select.value;
+      select.innerHTML = `<option value="">${firstLabel}</option>` + values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+      if (values.includes(current)) {
+        select.value = current;
+      }
+    }
+
+    function renderProcessTable() {
+      const filtered = getFilteredProcesses();
+
+      if (!filtered.length) {
+        processTableBody.innerHTML = `
+          <tr>
+            <td colspan="9">
+              <div class="empty-state">Nenhum processo encontrado com os filtros atuais.</div>
+            </td>
+          </tr>
+        `;
+      } else {
+        processTableBody.innerHTML = filtered.map((process) => {
+          const priority = getPriority(process);
+          const selectedClass = process.id === state.selectedProcessId ? "selected" : "";
+          const staleDays = daysSince(process.updatedAt);
+          return `
+            <tr class="${selectedClass}" data-select-process="${process.id}">
+              <td>
+                <strong>${escapeHtml(process.number)}</strong><br />
+                <span class="meta">${escapeHtml(process.opposingParty || "Sem parte contraria")}</span>
+              </td>
+              <td>${escapeHtml(process.client)}</td>
+              <td>${escapeHtml(courtLabel(process))}</td>
+              <td>${escapeHtml(process.responsible)}</td>
+              <td><span class="chip ${statusChipClass(process.status)}">${escapeHtml(process.status)}</span></td>
+              <td><span class="chip ${priority.className} priority-${priority.key}">${escapeHtml(priority.label)}</span></td>
+              <td>${process.deadline ? `${formatDate(process.deadline)}<br /><span class="meta">${deadlineLabel(process.deadline)}</span>` : '<span class="muted">Sem prazo</span>'}</td>
+              <td>${formatDate(process.updatedAt)}<br /><span class="meta">${staleDays !== null ? `${staleDays} dia(s)` : "Sem data"}</span></td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="mini-btn btn-soft" data-action="select-process" data-id="${process.id}">Ver</button>
+                  <button type="button" class="mini-btn btn-secondary" data-action="edit-process" data-id="${process.id}">Editar</button>
+                  <button type="button" class="mini-btn btn-muted" data-action="history-process" data-id="${process.id}">Historico</button>
+                  <button type="button" class="mini-btn btn-primary" data-action="open-link" data-id="${process.id}" ${process.link ? "" : "disabled"}>Abrir</button>
+                  <button type="button" class="mini-btn btn-danger" data-action="delete-process" data-id="${process.id}">Excluir</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      processCountText.textContent = `${filtered.length} processo(s) exibido(s) de ${state.processes.length} cadastrado(s).`;
+
+      if (!filtered.find((process) => process.id === state.selectedProcessId)) {
+        state.selectedProcessId = filtered[0]?.id || state.processes[0]?.id || null;
+      }
+
+      renderProcessDetail();
+    }
+
+    function deadlineLabel(deadline) {
+      const diff = diffDays(deadline);
+      if (diff === null) return "Sem prazo";
+      if (diff < 0) return `${Math.abs(diff)} dia(s) atrasado(s)`;
+      if (diff === 0) return "Prazo hoje";
+      if (diff === 1) return "Vence amanha";
+      return `Vence em ${diff} dia(s)`;
+    }
+
+    function renderProcessDetail() {
+      const process = state.processes.find((item) => item.id === state.selectedProcessId);
+
+      if (!process) {
+        processDetailPanel.innerHTML = `<div class="empty-state">Selecione um processo para visualizar os detalhes.</div>`;
+        return;
+      }
+
+      const priority = getPriority(process);
+      const historyPreview = sortHistory(process.history).slice(0, 4);
+
+      processDetailPanel.innerHTML = `
+        <div class="soft-box">
+          <div class="card-header" style="margin-bottom: 0;">
+            <div>
+              <strong>${escapeHtml(process.number)}</strong>
+              <div class="muted">${escapeHtml(process.client)}</div>
+            </div>
+            <span class="chip ${priority.className} priority-${priority.key}">${escapeHtml(priority.label)}</span>
+          </div>
+        </div>
+        <div class="detail-grid" style="margin-top: 14px;">
+          <div class="detail-item">
+            <span>Tribunal</span>
+            <strong>${escapeHtml(courtLabel(process))}</strong>
+          </div>
+          <div class="detail-item">
+            <span>Status</span>
+            <strong>${escapeHtml(process.status)}</strong>
+          </div>
+          <div class="detail-item">
+            <span>Responsavel</span>
+            <strong>${escapeHtml(process.responsible)}</strong>
+          </div>
+          <div class="detail-item">
+            <span>Prazo</span>
+            <strong>${process.deadline ? `${formatDate(process.deadline)} (${deadlineLabel(process.deadline)})` : "Sem prazo"}</strong>
+          </div>
+          <div class="detail-item">
+            <span>Ultima movimentacao</span>
+            <strong>${escapeHtml(process.lastMovement || "Nao informada")}</strong>
+          </div>
+          <div class="detail-item">
+            <span>Proxima acao</span>
+            <strong>${escapeHtml(process.nextAction || "Nao informada")}</strong>
+          </div>
+          <div class="detail-item">
+            <span>Observacoes</span>
+            <strong>${escapeHtml(process.notes || "Sem observacoes")}</strong>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <button type="button" class="btn-secondary" data-action="edit-process" data-id="${process.id}">Editar processo</button>
+          <button type="button" class="btn-muted" data-action="history-process" data-id="${process.id}">Ver historico</button>
+          <button type="button" class="btn-primary" data-action="open-link" data-id="${process.id}" ${process.link ? "" : "disabled"}>Abrir no portal</button>
+        </div>
+        <div class="soft-box">
+          <strong>Ultimos registros</strong>
+          <div class="timeline" style="margin-top: 12px;">
+            ${historyPreview.length ? historyPreview.map((entry) => `
+              <div class="timeline-item">
+                <div>
+                  <strong>${escapeHtml(entry.note)}</strong>
+                  <span class="muted">${escapeHtml(entry.type)} - ${formatDate(entry.date)}</span>
+                </div>
+              </div>
+            `).join("") : `<div class="empty-state">Sem historico registrado.</div>`}
+          </div>
+        </div>
+      `;
+    }
+
+    function sortHistory(history) {
+      return [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
+    function renderDashboard() {
+      const active = state.processes.filter((process) => !["Concluido", "Arquivado"].includes(process.status));
+      const urgent = state.processes.filter((process) => ["vencido", "hoje", "semana"].includes(getPriority(process).key));
+      const week = state.processes.filter((process) => {
+        const diff = diffDays(process.deadline);
+        return diff !== null && diff >= 0 && diff <= 7;
+      });
+      const stale = state.processes.filter((process) => (daysSince(process.updatedAt) || 0) >= 15);
+
+      document.getElementById("heroActiveCount").textContent = String(active.length);
+      document.getElementById("heroUrgentCount").textContent = String(urgent.length);
+      document.getElementById("heroWeekCount").textContent = String(week.length);
+      document.getElementById("heroStaleCount").textContent = String(stale.length);
+
+      document.getElementById("dashboardPrimaryMetric").textContent = `${state.processes.length} processo(s) em base local`;
+      document.getElementById("dashboardSummaryText").textContent = state.processes.length
+        ? `Voce tem ${urgent.length} urgencia(s), ${week.length} prazo(s) na semana e ${stale.length} item(ns) sem atualizacao recente.`
+        : "Cadastre seus processos para acompanhar prazos, andamento e distribuicao de carga.";
+
+      if (urgent.length) {
+        document.getElementById("dashboardMovementTitle").textContent = `${urgent.length} prioridade(s) pedem acao`;
+        document.getElementById("dashboardMovementText").textContent = "A fila de atencao ja combina prazos vencidos, prazos proximos e processos parados.";
+      } else if (stale.length) {
+        document.getElementById("dashboardMovementTitle").textContent = "Sem urgencias, mas ha processos sem revisao";
+        document.getElementById("dashboardMovementText").textContent = "Vale revisar os itens sem atualizacao para manter o escritorio em dia.";
+      } else {
+        document.getElementById("dashboardMovementTitle").textContent = "Tudo em ordem";
+        document.getElementById("dashboardMovementText").textContent = "Sem urgencias imediatas e com os processos organizados por prioridade.";
+      }
+
+      renderPriorityList(document.getElementById("dashboardPriorityList"), sortProcesses(state.processes).slice(0, 6), "Nenhuma pendencia relevante no momento.");
+      renderPriorityList(document.getElementById("dashboardAgendaList"), getDeadlineTimeline().filter((process) => {
+        const diff = diffDays(process.deadline);
+        return diff !== null && diff >= 0 && diff <= 7;
+      }).slice(0, 6), "Nenhum prazo na semana.");
+      renderResponsibleLoad();
+      renderClientLoad();
+      renderRecentHistory();
+    }
+
+    function renderPriorityList(container, processes, emptyMessage) {
+      if (!processes.length) {
+        container.innerHTML = `<div class="empty-state">${emptyMessage}</div>`;
+        return;
+      }
+
+      container.innerHTML = processes.map((process) => {
+        const priority = getPriority(process);
+        const extra = process.deadline ? deadlineLabel(process.deadline) : `${daysSince(process.updatedAt) || 0} dia(s) sem atualizar`;
+        return `
+          <div class="list-item">
+            <div>
+              <strong>${escapeHtml(process.client)}</strong>
+              <span class="muted">${escapeHtml(process.number)} - ${escapeHtml(process.nextAction || process.lastMovement || "Sem proxima acao")}</span>
+            </div>
+            <div style="text-align: right;">
+              <span class="chip ${priority.className} priority-${priority.key}">${escapeHtml(priority.label)}</span><br />
+              <span class="meta">${escapeHtml(extra)}</span><br />
+              <button type="button" class="mini-btn btn-soft" data-action="focus-process" data-id="${process.id}" style="margin-top: 8px;">Abrir ficha</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderResponsibleLoad() {
+      const container = document.getElementById("dashboardResponsibleList");
+      const grouped = groupBy(state.processes, "responsible");
+
+      if (!grouped.length) {
+        container.innerHTML = `<div class="empty-state">Cadastre processos para distribuir a carga por responsavel.</div>`;
+        return;
+      }
+
+      container.innerHTML = grouped.map((item) => `
+        <div class="list-item">
+          <div>
+            <strong>${escapeHtml(item.label)}</strong>
+            <span class="muted">${item.items.length} processo(s) vinculado(s)</span>
+          </div>
+          <span class="chip info">${item.items.filter((process) => ["vencido", "hoje", "semana"].includes(getPriority(process).key)).length} urgencia(s)</span>
+        </div>
+      `).join("");
+    }
+
+    function renderClientLoad() {
+      const container = document.getElementById("dashboardClientList");
+      const grouped = groupBy(state.processes, "client").slice(0, 6);
+
+      if (!grouped.length) {
+        container.innerHTML = `<div class="empty-state">A carteira de clientes aparece aqui conforme voce cadastrar os processos.</div>`;
+        return;
+      }
+
+      container.innerHTML = grouped.map((item) => {
+        const nearest = nearestDeadline(item.items);
+        return `
+          <div class="list-item">
+            <div>
+              <strong>${escapeHtml(item.label)}</strong>
+              <span class="muted">${item.items.length} processo(s)</span>
+            </div>
+            <span class="chip info">${nearest ? formatDate(nearest.deadline) : "Sem prazo"}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderRecentHistory() {
+      const container = document.getElementById("dashboardHistoryList");
+      const history = state.processes.flatMap((process) =>
+        (process.history || []).map((entry) => ({
+          ...entry,
+          processNumber: process.number,
+          client: process.client
+        }))
+      ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8);
+
+      if (!history.length) {
+        container.innerHTML = `<div class="empty-state">As alteracoes feitas nos processos aparecem aqui.</div>`;
+        return;
+      }
+
+      container.innerHTML = history.map((entry) => `
+        <div class="timeline-item">
+          <div>
+            <strong>${escapeHtml(entry.note)}</strong>
+            <span class="muted">${escapeHtml(entry.client)} - ${escapeHtml(entry.processNumber)}</span><br />
+            <span class="meta">${formatDate(entry.date)} - ${escapeHtml(entry.type)}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function getDeadlineTimeline() {
+      return state.processes
+        .filter((process) => process.deadline)
+        .sort((a, b) => {
+          const diffA = diffDays(a.deadline);
+          const diffB = diffDays(b.deadline);
+          return (diffA ?? 9999) - (diffB ?? 9999);
+        });
+    }
+
+    function renderAgenda() {
+      const timeline = getDeadlineTimeline();
+      const overdue = timeline.filter((process) => (diffDays(process.deadline) ?? 999) < 0);
+      const today = timeline.filter((process) => diffDays(process.deadline) === 0);
+      const week = timeline.filter((process) => {
+        const diff = diffDays(process.deadline);
+        return diff !== null && diff > 0 && diff <= 7;
+      });
+
+      renderPriorityList(document.getElementById("agendaOverdueList"), overdue.slice(0, 8), "Nenhum prazo vencido.");
+      renderPriorityList(document.getElementById("agendaTodayList"), today.slice(0, 8), "Nenhum prazo para hoje.");
+      renderPriorityList(document.getElementById("agendaWeekList"), week.slice(0, 8), "Nenhum prazo nos proximos 7 dias.");
+
+      const timelineContainer = document.getElementById("agendaTimeline");
+      if (!timeline.length) {
+        timelineContainer.innerHTML = `<div class="empty-state">Cadastre prazos nos processos para montar a linha do tempo.</div>`;
+        return;
+      }
+
+      timelineContainer.innerHTML = timeline.map((process) => `
+        <div class="timeline-item">
+          <div>
+            <strong>${formatDate(process.deadline)} - ${escapeHtml(process.client)}</strong>
+            <span class="muted">${escapeHtml(process.number)} - ${escapeHtml(process.nextAction || process.lastMovement || "Sem descricao")}</span><br />
+            <span class="meta">${escapeHtml(deadlineLabel(process.deadline))} | ${escapeHtml(process.responsible)}</span>
+          </div>
+          <span class="chip ${getPriority(process).className} priority-${getPriority(process).key}">${escapeHtml(getPriority(process).label)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderClients() {
+      const clientTableBody = document.getElementById("clientTableBody");
+      const responsibleTableBody = document.getElementById("responsibleTableBody");
+      const clients = groupBy(state.processes, "client");
+      const responsibles = groupBy(state.processes, "responsible");
+
+      clientTableBody.innerHTML = clients.length
+        ? clients.map((group) => {
+            const urgentCount = group.items.filter((process) => ["vencido", "hoje", "semana"].includes(getPriority(process).key)).length;
+            const nearest = nearestDeadline(group.items);
+            return `
+              <tr>
+                <td><strong>${escapeHtml(group.label)}</strong></td>
+                <td>${group.items.length}</td>
+                <td>${urgentCount}</td>
+                <td>${nearest ? formatDate(nearest.deadline) : "Sem prazo"}</td>
+              </tr>
+            `;
+          }).join("")
+        : `
+          <tr>
+            <td colspan="4">
+              <div class="empty-state">A carteira de clientes sera montada a partir dos processos cadastrados.</div>
+            </td>
+          </tr>
+        `;
+
+      responsibleTableBody.innerHTML = responsibles.length
+        ? responsibles.map((group) => `
+            <div class="list-item">
+              <div>
+                <strong>${escapeHtml(group.label)}</strong>
+                <span class="muted">${group.items.length} processo(s) em carteira</span>
+              </div>
+              <span class="chip info">${group.items.filter((process) => ["vencido", "hoje", "semana"].includes(getPriority(process).key)).length} urgencia(s)</span>
+            </div>
+          `).join("")
+        : `<div class="empty-state">Os responsaveis aparecem aqui conforme forem cadastrados nos processos.</div>`;
+    }
+
+    function renderTribunals() {
+      const portalGrid = document.getElementById("portalGrid");
+      const courtLoadList = document.getElementById("courtLoadList");
+      const courtGroups = groupBy(state.processes, "court");
+
+      portalGrid.innerHTML = state.portals.length
+        ? state.portals.map((portal) => `
+            <div class="portal-card">
+              <div>
+                <strong>${escapeHtml(portal.name)}</strong>
+                <p class="muted">${escapeHtml(portal.description || "Portal salvo para acesso rapido do escritorio.")}</p>
+              </div>
+              <div class="row-actions">
+                <button type="button" class="mini-btn btn-secondary" data-action="open-portal" data-id="${portal.id}">Abrir portal</button>
+                <button type="button" class="mini-btn btn-soft" data-action="edit-portal" data-id="${portal.id}">Editar</button>
+              </div>
+            </div>
+          `).join("")
+        : `<div class="empty-state">Cadastre seus portais na aba de configuracoes.</div>`;
+
+      courtLoadList.innerHTML = courtGroups.length
+        ? courtGroups.map((group) => `
+            <div class="list-item">
+              <div>
+                <strong>${escapeHtml(group.label)}</strong>
+                <span class="muted">${group.items.length} processo(s) vinculados</span>
+              </div>
+              <span class="chip info">${group.items.filter((process) => ["vencido", "hoje", "semana"].includes(getPriority(process).key)).length} urgencia(s)</span>
+            </div>
+          `).join("")
+        : `<div class="empty-state">A distribuicao por tribunal aparece aqui automaticamente.</div>`;
+
+      renderConfigPortalList();
+    }
+
+    function renderConfigPortalList() {
+      const container = document.getElementById("configPortalList");
+      container.innerHTML = state.portals.length
+        ? state.portals.map((portal) => `
+            <div class="list-item">
+              <div>
+                <strong>${escapeHtml(portal.name)}</strong>
+                <span class="muted">${escapeHtml(portal.description || portal.url)}</span><br />
+                <span class="meta">${escapeHtml(portal.url)}</span>
+              </div>
+              <div class="row-actions">
+                <button type="button" class="mini-btn btn-secondary" data-action="edit-portal" data-id="${portal.id}">Editar</button>
+                <button type="button" class="mini-btn btn-primary" data-action="open-portal" data-id="${portal.id}">Abrir</button>
+                <button type="button" class="mini-btn btn-danger" data-action="delete-portal" data-id="${portal.id}">Excluir</button>
+              </div>
+            </div>
+          `).join("")
+        : `<div class="empty-state">Nenhum portal cadastrado.</div>`;
+    }
+
+    function groupBy(items, key) {
+      const groups = items.reduce((acc, item) => {
+        const label = item[key] || "Nao informado";
+        acc[label] = acc[label] || [];
+        acc[label].push(item);
+        return acc;
+      }, {});
+
+      return Object.entries(groups)
+        .map(([label, groupedItems]) => ({ label, items: groupedItems }))
+        .sort((a, b) => b.items.length - a.items.length || a.label.localeCompare(b.label, "pt-BR"));
+    }
+
+    function nearestDeadline(items) {
+      return [...items]
+        .filter((item) => item.deadline)
+        .sort((a, b) => (diffDays(a.deadline) ?? 9999) - (diffDays(b.deadline) ?? 9999))[0] || null;
+    }
+
+    function openTab(id) {
+      panels.forEach((panel) => panel.classList.toggle("active", panel.id === id));
+      tabs.forEach((button) => button.classList.toggle("active", button.dataset.tab === id));
+    }
+
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
+    function renderAll() {
+      updateAuthUI();
+      populateFilterOptions();
+      renderDashboard();
+      renderProcessTable();
+      renderAgenda();
+      renderClients();
+      renderTribunals();
+    }
+
+    function openProcessForm(processId = null) {
+      if (!ensureAuthenticated("abrir o cadastro")) return;
+      const form = document.getElementById("processForm");
+      form.reset();
+      document.getElementById("processUpdatedAt").value = todayISO();
+      document.getElementById("processId").value = "";
+      document.getElementById("processModalTitle").textContent = "Novo processo";
+
+      if (processId) {
+        const process = state.processes.find((item) => item.id === processId);
+        if (!process) return;
+
+        document.getElementById("processModalTitle").textContent = "Editar processo";
+        document.getElementById("processId").value = process.id;
+        document.getElementById("processNumber").value = process.number;
+        document.getElementById("processClient").value = process.client;
+        document.getElementById("processOpposingParty").value = process.opposingParty;
+        document.getElementById("processResponsible").value = process.responsible;
+        document.getElementById("processCourt").value = process.court;
+        document.getElementById("processSystem").value = process.system;
+        document.getElementById("processStatus").value = process.status;
+        document.getElementById("processDeadline").value = process.deadline || "";
+        document.getElementById("processUpdatedAt").value = process.updatedAt || todayISO();
+        document.getElementById("processLastMovement").value = process.lastMovement;
+        document.getElementById("processNextAction").value = process.nextAction;
+        document.getElementById("processLink").value = process.link;
+        document.getElementById("processNotes").value = process.notes;
+      }
+
+      openModal("processModal");
+    }
+
+    function validateProcessFormData(processData) {
+      if (!processData.number) return "Informe o numero do processo.";
+      if (!processData.client) return "Informe o cliente.";
+      if (!processData.responsible) return "Informe o responsavel.";
+      if (!processData.court) return "Informe o tribunal.";
+      if (!processData.status) return "Informe o status.";
+      if (!processData.updatedAt) return "Informe a data da ultima atualizacao.";
+
+      if (processData.link) {
+        try {
+          new URL(processData.link);
+        } catch (_error) {
+          return "O link do processo precisa comecar com http:// ou https://";
+        }
+      }
+
+      return "";
+    }
+
+    async function withTimeout(promise, timeoutMs, label) {
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          reject(new Error(`${label} demorou mais que ${Math.round(timeoutMs / 1000)} segundos.`));
+        }, timeoutMs);
+      });
+
+      try {
+        return await Promise.race([promise, timeoutPromise]);
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
+    async function handleProcessSubmit(event) {
+      if (event && typeof event.preventDefault === "function") {
+        event.preventDefault();
+      }
+      if (!ensureAuthenticated("salvar processos")) return;
+
+      const processId = document.getElementById("processId").value;
+      const processData = {
+        id: processId || crypto.randomUUID(),
+        number: document.getElementById("processNumber").value.trim(),
+        client: document.getElementById("processClient").value.trim(),
+        opposingParty: document.getElementById("processOpposingParty").value.trim(),
+        responsible: document.getElementById("processResponsible").value.trim(),
+        court: document.getElementById("processCourt").value.trim(),
+        system: document.getElementById("processSystem").value.trim(),
+        status: document.getElementById("processStatus").value,
+        deadline: document.getElementById("processDeadline").value,
+        updatedAt: document.getElementById("processUpdatedAt").value || todayISO(),
+        lastMovement: document.getElementById("processLastMovement").value.trim(),
+        nextAction: document.getElementById("processNextAction").value.trim(),
+        link: document.getElementById("processLink").value.trim(),
+        notes: document.getElementById("processNotes").value.trim()
+      };
+
+      const validationError = validateProcessFormData(processData);
+      if (validationError) {
+        setRuntimeMessage(`Cadastro bloqueado: ${validationError}`);
+        window.alert(validationError);
+        return;
+      }
+
+      setRuntimeMessage("Salvando processo no Supabase...");
+
+      const dbPayload = {
+        id: processData.id,
+        number: processData.number,
+        client: processData.client,
+        opposing_party: processData.opposingParty,
+        court: processData.court,
+        system: processData.system,
+        responsible: processData.responsible,
+        status: processData.status,
+        deadline: processData.deadline || null,
+        updated_at: processData.updatedAt || todayISO(),
+        last_movement: processData.lastMovement,
+        next_action: processData.nextAction,
+        notes: processData.notes,
+        link: processData.link,
+        history: processId
+          ? (() => {
+              const current = state.processes.find((item) => item.id === processId);
+              return current
+                ? [makeHistoryEntry("Processo atualizado manualmente", "atualizacao"), ...current.history]
+                : [];
+            })()
+          : [makeHistoryEntry("Processo cadastrado no sistema", "cadastro")]
+      };
+
+      if (processId) {
+        const { data, error } = await withTimeout(
+          supabaseClient
+            .from("processes")
+            .update(dbPayload)
+            .eq("id", processId)
+            .select()
+            .single(),
+          12000,
+          "A atualizacao do processo"
+        );
+
+        if (error) {
+          console.error(error);
+          setRuntimeMessage(`Falha ao atualizar processo: ${error.message}`);
+          window.alert(`Nao foi possivel atualizar o processo.\n${error.message}`);
+          return;
+        }
+
+        const savedProcess = mapDbProcessToUi(data);
+        state.processes = state.processes.map((item) => item.id === processId ? savedProcess : item);
+        state.selectedProcessId = savedProcess.id;
+      } else {
+        const { data, error } = await withTimeout(
+          supabaseClient
+            .from("processes")
+            .insert([dbPayload])
+            .select()
+            .single(),
+          12000,
+          "O cadastro do processo"
+        );
+
+        if (error) {
+          console.error(error);
+          setRuntimeMessage(`Falha ao cadastrar processo: ${error.message}`);
+          window.alert(`Nao foi possivel cadastrar o processo.\n${error.message}`);
+          return;
+        }
+
+        const savedProcess = mapDbProcessToUi(data);
+        state.processes.unshift(savedProcess);
+        state.selectedProcessId = savedProcess.id;
+      }
+
+      closeModal("processModal");
+      resetFilters();
+      renderAll();
+      setRuntimeMessage("Processo salvo com sucesso.");
+      openTab("processos");
+    }
+
+    async function submitProcessForm() {
+      const saveButton = document.getElementById("saveProcessBtn");
+      saveButton.disabled = true;
+      saveButton.textContent = "Salvando...";
+
+      try {
+        await handleProcessSubmit();
+      } catch (error) {
+        console.error(error);
+        setRuntimeMessage(`Erro inesperado ao salvar processo: ${error.message}`);
+        window.alert(`Erro inesperado ao salvar processo.\n${error.message}`);
+      } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = "Salvar processo";
+      }
+    }
+
+    function openHistory(processId) {
+      const process = state.processes.find((item) => item.id === processId);
+      if (!process) return;
+
+      document.getElementById("historyModalTitle").textContent = `Historico - ${process.number}`;
+      const container = document.getElementById("historyModalList");
+      const history = sortHistory(process.history);
+      container.innerHTML = history.length
+        ? history.map((entry) => `
+            <div class="timeline-item">
+              <div>
+                <strong>${escapeHtml(entry.note)}</strong>
+                <span class="muted">${escapeHtml(entry.type)}</span><br />
+                <span class="meta">${formatDate(entry.date)}</span>
+              </div>
+            </div>
+          `).join("")
+        : `<div class="empty-state">Sem historico registrado.</div>`;
+
+      openModal("historyModal");
+    }
+
+    async function deleteProcess(processId) {
+      const process = state.processes.find((item) => item.id === processId);
+      if (!process) return;
+
+      const confirmed = window.confirm(`Excluir o processo ${process.number}?`);
+      if (!confirmed) return;
+
+      const { error } = await supabaseClient.from("processes").delete().eq("id", processId);
+      if (error) {
+        console.error(error);
+        window.alert("Nao foi possivel excluir o processo.");
+        return;
+      }
+
+      state.processes = state.processes.filter((item) => item.id !== processId);
+      if (state.selectedProcessId === processId) {
+        state.selectedProcessId = state.processes[0]?.id || null;
+      }
+      renderAll();
+    }
+
+    function openProcessLink(processId) {
+      const process = state.processes.find((item) => item.id === processId);
+      if (!process?.link) return;
+      window.open(process.link, "_blank", "noopener,noreferrer");
+    }
+
+    function handleProcessActions(event) {
+      const button = event.target.closest("[data-action]");
+      const row = event.target.closest("[data-select-process]");
+
+      if (button) {
+        const { action, id } = button.dataset;
+        if (action === "select-process") {
+          state.selectedProcessId = id;
+          renderProcessTable();
+          return;
+        }
+        if (action === "edit-process") {
+          openProcessForm(id);
+          return;
+        }
+        if (action === "history-process") {
+          openHistory(id);
+          return;
+        }
+        if (action === "open-link") {
+          openProcessLink(id);
+          return;
+        }
+        if (action === "delete-process") {
+          deleteProcess(id);
+          return;
+        }
+        if (action === "focus-process") {
+          state.selectedProcessId = id;
+          openTab("processos");
+          renderProcessTable();
+          return;
+        }
+        if (action === "open-portal") {
+          const portal = state.portals.find((item) => item.id === id);
+          if (portal?.url) window.open(portal.url, "_blank", "noopener,noreferrer");
+          return;
+        }
+        if (action === "edit-portal") {
+          editPortal(id);
+          openTab("config");
+          return;
+        }
+        if (action === "delete-portal") {
+          deletePortal(id);
+        }
+        return;
+      }
+
+      if (row) {
+        state.selectedProcessId = row.dataset.selectProcess;
+        renderProcessTable();
+      }
+    }
+
+    function buildBackupPayload() {
+      return {
+        exportedAt: new Date().toISOString(),
+        version: 1,
+        processes: state.processes,
+        portals: state.portals
+      };
+    }
+
+    function exportBackup() {
+      const payload = JSON.stringify(buildBackupPayload(), null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `central-processos-backup-${todayISO()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importBackup(file) {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          if (!ensureAuthenticated("importar backups")) return;
+          const parsed = JSON.parse(reader.result);
+          const importedProcesses = Array.isArray(parsed) ? parsed : parsed.processes;
+          const importedPortals = Array.isArray(parsed.portals) ? parsed.portals : state.portals;
+
+          if (!Array.isArray(importedProcesses)) {
+            throw new Error("Formato invalido");
+          }
+
+          const normalizedProcesses = importedProcesses.map(normalizeProcess);
+          const normalizedPortals = Array.isArray(importedPortals) ? importedPortals.map(normalizePortal) : [];
+
+          const processDelete = await supabaseClient.from("processes").delete().not("id", "is", null);
+          if (processDelete.error) throw processDelete.error;
+
+          if (normalizedProcesses.length) {
+            const processInsert = await supabaseClient.from("processes").insert(normalizedProcesses.map(mapUiProcessToDb));
+            if (processInsert.error) throw processInsert.error;
+          }
+
+          const portalDelete = await supabaseClient.from("portals").delete().not("id", "is", null);
+          if (portalDelete.error) throw portalDelete.error;
+
+          const portalsToInsert = normalizedPortals.length ? normalizedPortals : DEFAULT_PORTALS.map(normalizePortal);
+          const portalInsert = await supabaseClient.from("portals").insert(portalsToInsert.map(mapUiPortalToDb));
+          if (portalInsert.error) throw portalInsert.error;
+
+          await loadRemoteData();
+          openTab("processos");
+        } catch (error) {
+          window.alert("Nao foi possivel importar esse arquivo. Verifique se ele e um backup JSON valido.");
+          console.error(error);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetFilters() {
+      document.getElementById("filterSearch").value = "";
+      document.getElementById("filterStatus").value = "";
+      document.getElementById("filterResponsible").value = "";
+      document.getElementById("filterCourt").value = "";
+      document.getElementById("filterPriority").value = "";
+      document.getElementById("filterOnlyUrgent").checked = false;
+      document.getElementById("filterOnlyStale").checked = false;
+      renderProcessTable();
+    }
+
+    async function seedSampleData() {
+      if (!ensureAuthenticated("restaurar os exemplos")) return;
+      const confirmed = window.confirm("Restaurar os dados de exemplo? Isso substitui os processos atuais.");
+      if (!confirmed) return;
+      const processDelete = await supabaseClient.from("processes").delete().not("id", "is", null);
+      if (processDelete.error) {
+        console.error(processDelete.error);
+        window.alert("Nao foi possivel limpar os processos atuais.");
+        return;
+      }
+      const processInsert = await supabaseClient.from("processes").insert(SAMPLE_PROCESSES.map(normalizeProcess).map(mapUiProcessToDb));
+      if (processInsert.error) {
+        console.error(processInsert.error);
+        window.alert("Nao foi possivel restaurar os exemplos.");
+        return;
+      }
+      await loadRemoteData();
+    }
+
+    async function clearAllData() {
+      if (!ensureAuthenticated("limpar os dados")) return;
+      const confirmed = window.confirm("Limpar todos os processos e portais cadastrados?");
+      if (!confirmed) return;
+
+      const processDelete = await supabaseClient.from("processes").delete().not("id", "is", null);
+      if (processDelete.error) {
+        console.error(processDelete.error);
+        window.alert("Nao foi possivel limpar os processos.");
+        return;
+      }
+
+      const portalDelete = await supabaseClient.from("portals").delete().not("id", "is", null);
+      if (portalDelete.error) {
+        console.error(portalDelete.error);
+        window.alert("Nao foi possivel limpar os portais.");
+        return;
+      }
+
+      const portalInsert = await supabaseClient.from("portals").insert(DEFAULT_PORTALS.map(normalizePortal).map(mapUiPortalToDb));
+      if (portalInsert.error) {
+        console.error(portalInsert.error);
+        window.alert("Nao foi possivel restaurar os portais padrao.");
+        return;
+      }
+
+      state.selectedProcessId = null;
+      await loadRemoteData();
+    }
+
+    async function handlePortalSubmit(event) {
+      event.preventDefault();
+      if (!ensureAuthenticated("salvar portais")) return;
+      const portalId = document.getElementById("portalId").value;
+      const portalData = normalizePortal({
+        id: portalId || crypto.randomUUID(),
+        name: document.getElementById("portalName").value.trim(),
+        url: document.getElementById("portalUrl").value.trim(),
+        description: document.getElementById("portalDescription").value.trim()
+      });
+
+      const operation = portalId
+        ? supabaseClient.from("portals").upsert(mapUiPortalToDb(portalData))
+        : supabaseClient.from("portals").insert(mapUiPortalToDb(portalData));
+
+      const { error } = await operation;
+      if (error) {
+        console.error(error);
+        window.alert("Nao foi possivel salvar o portal.");
+        return;
+      }
+
+      document.getElementById("portalForm").reset();
+      document.getElementById("portalId").value = "";
+      document.getElementById("cancelPortalEdit").hidden = true;
+      await loadRemoteData();
+    }
+
+    function editPortal(portalId) {
+      const portal = state.portals.find((item) => item.id === portalId);
+      if (!portal) return;
+      document.getElementById("portalId").value = portal.id;
+      document.getElementById("portalName").value = portal.name;
+      document.getElementById("portalUrl").value = portal.url;
+      document.getElementById("portalDescription").value = portal.description;
+      document.getElementById("cancelPortalEdit").hidden = false;
+    }
+
+    async function deletePortal(portalId) {
+      const portal = state.portals.find((item) => item.id === portalId);
+      if (!portal) return;
+      const confirmed = window.confirm(`Excluir o portal ${portal.name}?`);
+      if (!confirmed) return;
+      const { error } = await supabaseClient.from("portals").delete().eq("id", portalId);
+      if (error) {
+        console.error(error);
+        window.alert("Nao foi possivel excluir o portal.");
+        return;
+      }
+      state.portals = state.portals.filter((item) => item.id !== portalId);
+      renderTribunals();
+    }
+
+    async function signInWithEmail(event) {
+      event.preventDefault();
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value;
+      setRuntimeMessage("Tentando entrar no Supabase...");
+
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        console.error(error);
+        setRuntimeMessage(`Falha no login: ${error.message}`);
+        window.alert("Nao foi possivel entrar. Verifique email e senha.");
+        return;
+      }
+
+      setRuntimeMessage("Login realizado. Carregando base compartilhada...");
+    }
+
+    async function registerWithEmail() {
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value;
+
+      if (!email || !password) {
+        window.alert("Preencha email e senha para criar o acesso.");
+        return;
+      }
+
+      const { error } = await supabaseClient.auth.signUp({ email, password });
+      if (error) {
+        console.error(error);
+        setRuntimeMessage(`Falha ao criar acesso: ${error.message}`);
+        window.alert("Nao foi possivel criar o acesso. Verifique se o usuario ja existe ou se a senha atende os requisitos.");
+        return;
+      }
+
+      setRuntimeMessage("Acesso criado. Verifique se o Supabase exige confirmacao por email.");
+      window.alert("Acesso criado. Se o Supabase pedir confirmacao por email, confirme antes de entrar.");
+    }
+
+    async function signOutUser() {
+      setRuntimeMessage("Encerrando sessao...");
+      const { error } = await supabaseClient.auth.signOut();
+      if (error) {
+        console.error(error);
+        await clearLocalSession(false);
+        setRuntimeMessage(`Logout remoto falhou, mas a sessao local foi limpa: ${error.message}`);
+        window.alert("O logout remoto falhou, mas limpei a sessao local deste navegador.");
+        renderAll();
+        return;
+      }
+      setRuntimeMessage("Sessao encerrada.");
+    }
+
+    function forceResetSession() {
+      try {
+        const keysToRemove = [];
+        for (let index = 0; index < localStorage.length; index += 1) {
+          const key = localStorage.key(index);
+          if (key && (key.includes("ridbspgckbiffhxhiuvn") || key.startsWith("sb-"))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((key) => localStorage.removeItem(key));
+      } catch (error) {
+        console.error("Falha ao limpar localStorage", error);
+      }
+
+      try {
+        sessionStorage.clear();
+      } catch (error) {
+        console.error("Falha ao limpar sessionStorage", error);
+      }
+
+      window.location.reload();
+    }
+
+    async function clearLocalSession(reloadPage = true) {
+      try {
+        await supabaseClient.auth.signOut({ scope: "local" });
+      } catch (error) {
+        console.error("Falha ao limpar sessao local do Supabase", error);
+      }
+
+      const keysToRemove = [];
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        if (key && (key.includes("ridbspgckbiffhxhiuvn") || key.startsWith("sb-"))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+      state.user = null;
+      state.processes = [];
+      state.portals = [];
+      state.selectedProcessId = null;
+      cleanupSubscriptions();
+      setRuntimeMessage("Sessao local apagada. Entre novamente.");
+      renderAll();
+
+      if (reloadPage) {
+        forceResetSession();
+      }
+    }
+
+    function bindAuthListener() {
+      supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+        state.user = session?.user || null;
+        updateAuthUI();
+
+        if (state.user) {
+          setRuntimeMessage(`Sessao reconhecida para ${state.user.email}. Carregando dados...`);
+          await loadRemoteData();
+          subscribeToRealtime();
+        } else {
+          cleanupSubscriptions();
+          state.processes = [];
+          state.portals = [];
+          state.selectedProcessId = null;
+          setRuntimeMessage("Sessao encerrada. Entre novamente para acessar a base compartilhada.");
+          renderAll();
+        }
+      });
+    }
+
+    function bindEvents() {
+      tabs.forEach((button) => {
+        button.addEventListener("click", () => openTab(button.dataset.tab));
+      });
+
+      document.getElementById("processForm").addEventListener("submit", handleProcessSubmit);
+      document.getElementById("saveProcessBtn").addEventListener("click", submitProcessForm);
+      document.getElementById("portalForm").addEventListener("submit", handlePortalSubmit);
+      document.getElementById("authForm").addEventListener("submit", signInWithEmail);
+
+      document.getElementById("newProcessBtn").addEventListener("click", () => openProcessForm());
+      document.getElementById("heroNewProcess").addEventListener("click", () => openProcessForm());
+      document.getElementById("heroGoProcesses").addEventListener("click", () => openTab("processos"));
+      document.getElementById("exportBtn").addEventListener("click", exportBackup);
+      document.getElementById("heroExport").addEventListener("click", exportBackup);
+      document.getElementById("configExportBtn").addEventListener("click", exportBackup);
+      document.getElementById("importBtn").addEventListener("click", () => importFile.click());
+      document.getElementById("configImportBtn").addEventListener("click", () => importFile.click());
+      document.getElementById("clearFiltersBtn").addEventListener("click", resetFilters);
+      document.getElementById("seedDataBtn").addEventListener("click", seedSampleData);
+      document.getElementById("clearDataBtn").addEventListener("click", clearAllData);
+      document.getElementById("registerBtn").addEventListener("click", registerWithEmail);
+      document.getElementById("logoutBtn").addEventListener("click", signOutUser);
+      document.getElementById("forceResetBtn").addEventListener("click", () => clearLocalSession(true));
+      document.getElementById("cancelPortalEdit").addEventListener("click", () => {
+        document.getElementById("portalForm").reset();
+        document.getElementById("portalId").value = "";
+        document.getElementById("cancelPortalEdit").hidden = true;
+      });
+
+      processTableBody.addEventListener("click", handleProcessActions);
+      processDetailPanel.addEventListener("click", handleProcessActions);
+      document.getElementById("dashboardPriorityList").addEventListener("click", handleProcessActions);
+      document.getElementById("dashboardAgendaList").addEventListener("click", handleProcessActions);
+      document.getElementById("agendaOverdueList").addEventListener("click", handleProcessActions);
+      document.getElementById("agendaTodayList").addEventListener("click", handleProcessActions);
+      document.getElementById("agendaWeekList").addEventListener("click", handleProcessActions);
+      document.getElementById("agendaTimeline").addEventListener("click", handleProcessActions);
+      document.getElementById("portalGrid").addEventListener("click", handleProcessActions);
+      document.getElementById("configPortalList").addEventListener("click", handleProcessActions);
+
+      document.querySelectorAll("[data-close-modal]").forEach((button) => {
+        button.addEventListener("click", () => closeModal(button.dataset.closeModal));
+      });
+
+      document.querySelectorAll(".modal-backdrop").forEach((backdrop) => {
+        backdrop.addEventListener("click", (event) => {
+          if (event.target === backdrop) {
+            closeModal(backdrop.id);
+          }
+        });
+      });
+
+      document.querySelectorAll("#filterSearch, #filterStatus, #filterResponsible, #filterCourt, #filterPriority, #filterOnlyUrgent, #filterOnlyStale").forEach((element) => {
+        element.addEventListener("input", renderProcessTable);
+        element.addEventListener("change", renderProcessTable);
+      });
+
+      importFile.addEventListener("change", (event) => {
+        const file = event.target.files?.[0];
+        if (file) importBackup(file);
+        event.target.value = "";
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal("processModal");
+          closeModal("historyModal");
+        }
+      });
+    }
+
+    bindAuthListener();
+    bindEvents();
+    loadState();
+  </script>
+</body>
+</html>
